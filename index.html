@@ -1,190 +1,231 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Conversor LaCuerda a LaTeX (Cancionero)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conversor LaCuerda a LaTeX (Cancionero)</title>
+<script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-6">
-    <div class="max-w-5xl mx-auto space-y-6">
-        <header class="text-center space-y-2">
-            <h1 class="text-3xl font-bold text-amber-500">🎸 LaCuerda URL to LaTeX</h1>
-            <p class="text-slate-400">Pega el link de LaCuerda y genera el código directo para tu cancionero.</p>
-        </header>
+<div class="max-w-5xl mx-auto space-y-6">
+  <header class="text-center space-y-2">
+    <h1 class="text-3xl font-bold text-amber-500">🎸 LaCuerda a LaTeX</h1>
+    <p class="text-slate-400">Pega el enlace de LaCuerda (o el texto con acordes) y genera código para el paquete <code>songs</code>.</p>
+  </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Panel de Entrada -->
-            <div class="space-y-4 bg-slate-800 p-5 rounded-xl border border-slate-700">
-                <h2 class="text-xl font-semibold text-amber-400">1. Importar desde URL</h2>
-                
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-1">URL de LaCuerda.net:</label>
-                    <input type="url" id="inputUrl" placeholder="https://acordes.lacuerda.net/artista/cancion.shtml" 
-                        class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none text-sm">
-                </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="space-y-4 bg-slate-800 p-5 rounded-xl border border-slate-700">
+      <h2 class="text-xl font-semibold text-amber-400">1. Entrada</h2>
+      <label class="block text-sm text-slate-300">URL de LaCuerda:</label>
+      <input type="url" id="inputUrl" placeholder="https://acordes.lacuerda.net/artista/cancion.shtml"
+        class="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none text-sm">
+      <button id="btnCargar" onclick="cargarDesdeUrl()"
+        class="w-full py-3 bg-amber-600 hover:bg-amber-500 font-semibold rounded-lg text-slate-950">Obtener y convertir</button>
+      <p id="estado" class="text-xs text-slate-400 min-h-[1rem]"></p>
 
-                <button onclick="cargarYConvertir()" id="btnCargar"
-                    class="w-full py-3 bg-amber-600 hover:bg-amber-500 font-semibold rounded-lg transition-colors shadow-lg text-slate-950 flex justify-center items-center gap-2">
-                    <span>Obtener y Convertir</span>
-                </button>
+      <div class="flex items-center gap-3 text-xs text-slate-500">
+        <div class="flex-grow border-t border-slate-700"></div>O PEGA EL TEXTO<div class="flex-grow border-t border-slate-700"></div>
+      </div>
 
-                <div class="relative flex py-2 items-center">
-                    <div class="flex-grow border-t border-slate-700"></div>
-                    <span class="flex-shrink mx-4 text-xs text-slate-500">O PEGA EL TEXTO DIRECTO</span>
-                    <div class="flex-grow border-t border-slate-700"></div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="text" id="inputTitulo" placeholder="Título opcional" class="p-2 bg-slate-900 border border-slate-700 rounded-lg text-xs">
-                    <input type="text" id="inputArtista" placeholder="Artista opcional" class="p-2 bg-slate-900 border border-slate-700 rounded-lg text-xs">
-                </div>
-
-                <textarea id="inputSong" rows="6" 
-                    class="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none font-mono text-xs"
-                    placeholder="Texto de repuesto o manual..."></textarea>
-            </div>
-
-            <!-- Panel de Salida -->
-            <div class="space-y-4 bg-slate-800 p-5 rounded-xl border border-slate-700 flex flex-col">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-xl font-semibold text-amber-400">2. Código LaTeX Resultante</h2>
-                    <button onclick="copiarAlPortapapeles()" 
-                        class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded transition-colors font-medium">
-                        Copiar Código
-                    </button>
-                </div>
-                <div class="flex-grow flex flex-col">
-                    <textarea id="outputLaTeX" rows="16" readonly
-                        class="w-full flex-grow p-3 bg-slate-950 border border-slate-800 rounded-lg font-mono text-xs text-amber-200"
-                        placeholder="El código LaTeX generado aparecerá aquí..."></textarea>
-                </div>
-            </div>
-        </div>
+      <div class="grid grid-cols-2 gap-2">
+        <input type="text" id="inputTitulo" placeholder="Título" class="p-2 bg-slate-900 border border-slate-700 rounded-lg text-xs">
+        <input type="text" id="inputArtista" placeholder="Artista" class="p-2 bg-slate-900 border border-slate-700 rounded-lg text-xs">
+      </div>
+      <textarea id="inputSong" rows="10" spellcheck="false"
+        class="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none font-mono text-xs"
+        placeholder="Pega aquí la canción tal como aparece en LaCuerda (acordes encima de la letra)..."></textarea>
+      <label class="flex items-center gap-2 text-sm text-slate-300">
+        <input type="checkbox" id="chkCompleto" checked> Incluir preámbulo (documento completo)
+      </label>
     </div>
 
-    <script>
-        async function cargarYConvertir() {
-            const urlInput = document.getElementById('inputUrl').value.trim();
-            const btn = document.getElementById('btnCargar');
+    <div class="space-y-4 bg-slate-800 p-5 rounded-xl border border-slate-700 flex flex-col">
+      <div class="flex justify-between items-center">
+        <h2 class="text-xl font-semibold text-amber-400">2. Código LaTeX</h2>
+        <button onclick="copiar()" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded font-medium">Copiar</button>
+      </div>
+      <textarea id="outputLaTeX" rows="20" readonly spellcheck="false"
+        class="w-full flex-grow p-3 bg-slate-950 border border-slate-800 rounded-lg font-mono text-xs text-amber-200"
+        placeholder="El código generado aparecerá aquí..."></textarea>
+    </div>
+  </div>
+</div>
 
-            if (!urlInput) {
-                // Si no hay URL, intenta convertir desde el textarea directamente
-                procesarTexto(document.getElementById('inputSong').value);
-                return;
-            }
+<script>
+// ---------- Reconocimiento de acordes ----------
+const CHORD = /^[A-G][#b]?(?:maj|min|dim|aug|sus|add|m|M|\+|°|º)?(?:[0-9]{1,2}|[#b+-][0-9]{1,2}|sus[24]?|add[0-9]{1,2}|maj[0-9]{1,2}|dim|aug|\([^)]*\))*(?:\/[A-G][#b]?)?$/;
+const FILLER = /^(?:\||\|\||\/|-|%|\(?x\d+\)?|\(?\d+x\)?)$/i;
+const SECTION = /^[\[(]?\s*(intro|estribillo|coro|pre-?coro|puente|verso|estrofa|solo|interludio|outro|final|instrumental)([\s\d]*)(?:x\d+)?[\])]?\s*:?\s*(.*)$/i;
 
-            btn.disabled = true;
-            btn.innerText = "Cargando página...";
+const $ = id => document.getElementById(id);
 
-            try {
-                // Usamos un proxy CORS gratuito para sortear el bloqueo del navegador
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(urlInput)}`;
-                const response = await fetch(proxyUrl);
-                const data = await response.json();
+function esAcordes(l) {
+  const t = l.trim().split(/\s+/).filter(Boolean);
+  if (!t.length) return false;
+  let n = 0;
+  for (const x of t) {
+    if (CHORD.test(x)) n++;
+    else if (!FILLER.test(x)) return false;
+  }
+  return n > 0;
+}
 
-                if (!data.contents) throw new Error("No se pudo obtener el contenido.");
+function seccion(l) {
+  const m = l.trim().match(SECTION);
+  if (m && (m[3].trim() === '' || esAcordes(m[3]))) return m;
+  return null;
+}
 
-                // Parseamos el HTML obtenido
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(data.contents, 'text/html');
+function esc(s) {
+  const map = { '\\': '\\textbackslash{}', '~': '\\textasciitilde{}', '^': '\\textasciicircum{}' };
+  return s.replace(/[\\{}&%$#_~^]/g, c => map[c] || '\\' + c);
+}
 
-                // Extraemos Título y Artista si están disponibles en la página
-                let titulo = doc.querySelector('h1')?.innerText || "Título";
-                let artista = doc.querySelector('h2')?.innerText || "Artista";
+// Acordes en la línea de arriba -> \[Acorde] insertado en la columna correspondiente
+function mezclar(lineaAcordes, letra) {
+  const pos = [];
+  const re = /\S+/g;
+  let m;
+  while ((m = re.exec(lineaAcordes))) if (CHORD.test(m[0])) pos.push([m.index, m[0]]);
+  letra = letra.replace(/\s+$/, '');
+  const maxPos = Math.max(...pos.map(p => p[0]));
+  if (letra.length < maxPos) letra = letra.padEnd(maxPos);
+  let out = '', last = 0;
+  for (const [p, c] of pos) {
+    out += esc(letra.slice(last, p)) + '\\[' + c + ']';
+    last = p;
+  }
+  out += esc(letra.slice(last));
+  return out.replace(/\s+$/, '');
+}
 
-                // Intentamos extraer el bloque con los acordes (suele estar en un tag <pre> o #cancion)
-                let cancionElement = doc.querySelector('pre') || doc.querySelector('#cancion');
-                
-                if (!cancionElement) {
-                    alert("No se pudo extraer el formato de la canción automáticamente. Intenta copiar y pegar el texto.");
-                    return;
-                }
+function soloAcordes(l) {
+  return l.trim().split(/\s+/).filter(x => CHORD.test(x)).map(c => '\\[' + c + ']').join(' ');
+}
 
-                let textoCancion = cancionElement.innerText;
+// Soporta también texto con acordes en corchetes: "Hola [Am]mundo"
+function corchetes(l) {
+  let out = '', last = 0;
+  l.replace(/\[([^\]]+)\]/g, (m, c, idx) => {
+    if (!CHORD.test(c)) return m;
+    out += esc(l.slice(last, idx)) + '\\[' + c + ']';
+    last = idx + m.length;
+    return m;
+  });
+  return out + esc(l.slice(last));
+}
 
-                document.getElementById('inputTitulo').value = titulo;
-                document.getElementById('inputArtista').value = artista;
-                document.getElementById('inputSong').value = textoCancion;
+// ---------- Conversión ----------
+function parsear(texto) {
+  const lines = texto.replace(/\r/g, '').replace(/\u00a0/g, ' ').replace(/\t/g, '    ').split('\n');
+  const bloques = [];
+  let cur = [], kind = 'verse', note = '';
+  const flush = () => {
+    if (cur.length) { bloques.push({ kind, note, lines: cur }); cur = []; kind = 'verse'; note = ''; }
+  };
 
-                procesarTexto(textoCancion, titulo, artista);
+  for (let i = 0; i < lines.length; i++) {
+    let l = lines[i].replace(/\s+$/, '');
+    if (!l.trim()) { flush(); continue; }
 
-            } catch (error) {
-                console.error(error);
-                alert("Error al obtener la canción desde la URL. Verifica el enlace o inténtalo pegando el texto.");
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "Obtener y Convertir";
-            }
-        }
+    const s = seccion(l);
+    if (s) {
+      flush();
+      const w = s[1].toLowerCase();
+      if (/^(estribillo|coro)$/.test(w)) kind = 'chorus';
+      else { const e = (s[1] + s[2]).trim(); note = e.charAt(0).toUpperCase() + e.slice(1).toLowerCase(); }
+      if (!s[3].trim()) continue;
+      l = s[3]; // "Intro: Am G" -> procesa los acordes
+    }
 
-        function procesarTexto(textoCrudo, tituloManual, artistaManual) {
-            const titulo = tituloManual || document.getElementById('inputTitulo').value.trim() || "Título";
-            const artista = artistaManual || document.getElementById('inputArtista').value.trim() || "Artista";
+    if (esAcordes(l)) {
+      const next = lines[i + 1];
+      if (next !== undefined && next.trim() && !esAcordes(next) && !seccion(next)) {
+        cur.push(mezclar(l, next));
+        i++;
+      } else cur.push(soloAcordes(l));
+    } else {
+      cur.push(corchetes(l));
+    }
+  }
+  flush();
+  return bloques;
+}
 
-            if (!textoCrudo.trim()) {
-                alert("Por favor ingresa una URL válida o pega el texto de la canción.");
-                return;
-            }
+function generar(texto, titulo, artista) {
+  const bloques = parsear(texto);
+  let cuerpo = `\\beginsong{${esc(titulo || 'Título')}}[by={${esc(artista || 'Artista')}}]\n\n`;
+  for (const b of bloques) {
+    const env = b.kind === 'chorus' ? 'chorus' : 'verse';
+    if (b.note) cuerpo += `\\textnote{${esc(b.note)}}\n`;
+    cuerpo += `\\begin${env}\n${b.lines.join('\n')}\n\\end${env}\n\n`;
+  }
+  cuerpo += '\\endsong\n';
+  if (!$('chkCompleto').checked) return cuerpo;
+  return `\\documentclass[a4paper]{article}\n\\usepackage[T1]{fontenc}\n\\usepackage[spanish]{babel}\n\\usepackage[chorded]{songs}\n\n\\begin{document}\n\\begin{songs}{}\n\n${cuerpo}\n\\end{songs}\n\\end{document}\n`;
+}
 
-            let lineas = textoCrudo.split('\n');
-            let resultadoBloques = [];
-            let bloqueActual = [];
-            let tipoBloque = 'verso';
+function convertirManual() {
+  const texto = $('inputSong').value;
+  if (!texto.trim()) { $('outputLaTeX').value = ''; return; }
+  $('outputLaTeX').value = generar(texto, $('inputTitulo').value.trim(), $('inputArtista').value.trim());
+}
 
-            function cerrarBloque() {
-                if (bloqueActual.length > 0) {
-                    let contenido = bloqueActual.join('\n');
-                    resultadoBloques.push(`\\begin{${tipoBloque}}\n${contenido}\n\\end{${tipoBloque}}`);
-                    bloqueActual = [];
-                }
-            }
+// ---------- Descarga desde URL (con varios proxies CORS de respaldo) ----------
+const PROXIES = [
+  u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`
+];
 
-            lineas.forEach(linea => {
-                let lineaTrim = linea.trim();
+async function descargar(url) {
+  let ultimo = new Error('Sin respuesta');
+  for (const p of PROXIES) {
+    try {
+      const r = await fetch(p(url));
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const buf = await r.arrayBuffer();
+      let t = new TextDecoder('utf-8').decode(buf);
+      if (t.includes('\uFFFD')) t = new TextDecoder('windows-1252').decode(buf);
+      if (t.length < 500) throw new Error('Respuesta vacía');
+      return t;
+    } catch (e) { ultimo = e; }
+  }
+  throw ultimo;
+}
 
-                // Detección de secciones comunes en LaCuerda
-                if (/^(estribillo|coro)/i.test(lineaTrim)) {
-                    cerrarBloque();
-                    tipoBloque = 'estribillo';
-                    return;
-                } else if (/^(puente|intro)/i.test(lineaTrim)) {
-                    cerrarBloque();
-                    tipoBloque = 'puente';
-                    return;
-                } else if (/^verso/i.test(lineaTrim)) {
-                    cerrarBloque();
-                    tipoBloque = 'verso';
-                    return;
-                }
+async function cargarDesdeUrl() {
+  const url = $('inputUrl').value.trim();
+  if (!url) { convertirManual(); return; }
+  const btn = $('btnCargar');
+  btn.disabled = true;
+  $('estado').textContent = 'Descargando página...';
+  try {
+    const html = await descargar(url);
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const pre = doc.querySelector('#t_body pre') || doc.querySelector('pre');
+    if (!pre) throw new Error('No se encontró el bloque de la canción');
+    $('inputTitulo').value = (doc.querySelector('h1')?.textContent || '').trim();
+    $('inputArtista').value = (doc.querySelector('h2')?.textContent || '').trim();
+    $('inputSong').value = pre.textContent;
+    convertirManual();
+    $('estado').textContent = 'Listo. Revisa el resultado.';
+  } catch (e) {
+    console.error(e);
+    $('estado').textContent = 'No se pudo descargar (' + e.message + '). Copia y pega el texto de la canción abajo.';
+  } finally {
+    btn.disabled = false;
+  }
+}
 
-                if (lineaTrim === "") {
-                    cerrarBloque();
-                    return;
-                }
+function copiar() {
+  const o = $('outputLaTeX');
+  if (!o.value) return;
+  navigator.clipboard.writeText(o.value).then(() => { $('estado').textContent = '¡Código copiado!'; });
+}
 
-                // Reemplaza corchetes tipo [Am] por \chord{Am}
-                let lineaProcesada = linea.replace(/\[(.*?)\]/g, '\\chord{$1}');
-
-                bloqueActual.push(lineaProcesada);
-            });
-
-            cerrarBloque();
-
-            let codigoFinal = `\\cancion{${titulo}}{${artista}}{\n` + 
-                              resultadoBloques.map(b => "  " + b.replace(/\n/g, "\n  ")).join('\n\n') + 
-                              `\n}`;
-
-            document.getElementById('outputLaTeX').value = codigoFinal;
-        }
-
-        function copiarAlPortapapeles() {
-            const output = document.getElementById('outputLaTeX');
-            if(!output.value) return;
-            output.select();
-            navigator.clipboard.writeText(output.value);
-            alert("¡Código LaTeX copiado!");
-        }
-    </script>
+['inputSong', 'inputTitulo', 'inputArtista', 'chkCompleto'].forEach(id => $(id).addEventListener('input', convertirManual));
+$('chkCompleto').addEventListener('change', convertirManual);
+</script>
 </body>
 </html>
