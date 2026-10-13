@@ -22,6 +22,13 @@
       <button id="btnCargar" onclick="cargarDesdeUrl()"
         class="w-full py-3 bg-amber-600 hover:bg-amber-500 font-semibold rounded-lg text-slate-950">Obtener y convertir</button>
       <p id="estado" class="text-xs text-slate-400 min-h-[1rem]"></p>
+      <div class="rounded-lg border border-amber-700/60 bg-slate-900 p-3 space-y-2 text-xs text-slate-300">
+        <p class="font-semibold text-amber-400">Método fiable: marcador</p>
+        <p>1. Arrastra este botón a tu barra de marcadores:</p>
+        <a href="javascript:(function(){fetch(location.href).then(function(r){return r.arrayBuffer()}).then(function(b){var d=new DOMParser().parseFromString(new TextDecoder('utf-8').decode(b),'text/html');var p=d.querySelector('#t_body pre')||d.querySelector('pre');if(!p){alert('No encuentro la cancion en esta pagina');return}var x=function(e){return e?e.textContent.replace(/\s+/g,' ').trim():''};location.href='https://droide13.github.io/LacuerdaLaTex/#'+encodeURIComponent(JSON.stringify({s:p.textContent,t:x(d.querySelector('h1')),a:x(d.querySelector('h2'))}))}).catch(function(e){alert('Error: '+e.message)})})()" onclick="alert('No lo pulses aquí: arrástralo a la barra de marcadores.');return false"
+           class="inline-block px-3 py-1.5 bg-amber-600 text-slate-950 font-semibold rounded cursor-grab">🎸 LaCuerda → LaTeX</a>
+        <p>2. Abre la canción en LaCuerda y pulsa el marcador.<br>3. Volverás aquí con el código ya convertido.</p>
+      </div>
 
       <div class="flex items-center gap-3 text-xs text-slate-500">
         <div class="flex-grow border-t border-slate-700"></div>O PEGA EL TEXTO<div class="flex-grow border-t border-slate-700"></div>
@@ -35,10 +42,13 @@
         class="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none font-mono text-xs"
         placeholder="Pega aquí la canción tal como aparece en LaCuerda (acordes encima de la letra)..."></textarea>
       <label class="flex items-center gap-2 text-sm text-slate-300">
-        <input type="checkbox" id="chkCompleto" checked> Incluir preámbulo (documento completo)
+        <input type="checkbox" id="chkCompleto"> Incluir preámbulo (documento completo)
       </label>
       <label class="flex items-center gap-2 text-sm text-slate-300">
-        <input type="checkbox" id="chkCols" checked> Dos columnas
+        <input type="checkbox" id="chkTitulo" checked> Incluir título (\section)
+      </label>
+      <label class="flex items-center gap-2 text-sm text-slate-300">
+        <input type="checkbox" id="chkCols"> Envolver en dos columnas
       </label>
       <label class="flex items-center gap-2 text-sm text-slate-300">
         <input type="checkbox" id="chkBlank"> Cortar párrafo en cada línea en blanco
@@ -123,25 +133,43 @@ function esc(s) {
 }
 const ch = c => '\\chord{' + c.replace(/#/g, '\\#') + '}';
 
-// Acordes de la línea superior -> \chord{X} colocado en la columna de la letra
-function mezclar(acordes, letra) {
-  const pos = [], re = /[^\s-]+/g;
-  let m;
-  while ((m = re.exec(acordes))) if (CHORD.test(m[0])) pos.push([m.index, m[0]]);
+const chordsOf = l => (l.match(/[^\s-]+/g) || []).filter(x => CHORD.test(x));
+
+// pos = [[columna, acorde], ...] sobre la letra
+function insertar(pos, letra) {
   letra = letra.replace(/\s+$/, '');
   letra = letra.padEnd(Math.max(...pos.map(p => p[0])));
   let out = esc(letra.slice(0, pos[0][0]));
   pos.forEach(([p, c], k) => {
     const seg = letra.slice(p, k + 1 < pos.length ? pos[k + 1][0] : undefined);
     out += ch(c) + esc(seg);
-    // ancho aprox. del acorde (negrita pequeña) frente al de la letra: evita que se pisen
+    // ancho aprox. del acorde frente al de la letra: evita que se pisen
     const falta = c.length * 0.8 + 0.6 - seg.length * 0.42;
     if (k + 1 < pos.length && falta > 0) out += '\\hspace*{' + falta.toFixed(1) + 'em}';
   });
-  return out.replace(/\s+$/, '');
+  return out.replace(/^\s+|\s+$/g, '');
 }
+
+// Acordes en la línea superior, con columnas fiables
+function mezclar(acordes, letra) {
+  const pos = [], re = /[^\s-]+/g;
+  let m;
+  while ((m = re.exec(acordes))) if (CHORD.test(m[0])) pos.push([m.index, m[0]]);
+  return insertar(pos, letra);
+}
+
+// Acordes sueltos (uno por línea, sin columnas): se reparten por las palabras de la letra
+function repartir(acordes, letra) {
+  letra = letra.trim();
+  const starts = [], re = /\S+/g;
+  let m;
+  while ((m = re.exec(letra))) starts.push(m.index);
+  const n = acordes.length;
+  return insertar(acordes.map((c, i) => [starts[Math.min(starts.length - 1, Math.floor(i * starts.length / n))], c]), letra);
+}
+
 function soloAcordes(l) {
-  return (l.match(/[^\s-]+/g) || []).filter(x => CHORD.test(x)).map(c => ch(c) + '\\hspace*{' + (c.length * 0.6 + 1).toFixed(1) + 'em}').join('');
+  return chordsOf(l).map(c => ch(c) + '\\hspace*{' + (c.length * 0.6 + 1).toFixed(1) + 'em}').join('');
 }
 function corchetes(l) {   // "Hola [Am]mundo"
   let out = '', last = 0;
@@ -171,45 +199,63 @@ function parsear(texto) {
   });
   const cortaPorBlanco = $('chkBlank').checked;
   const bloques = [];
-  let cur = [], tabs = [], kind = 'verse', note = '', blancos = 0;
+  let cur = [], tabs = [], kind = 'verse', note = '', blancos = 0, sinTab = 0;
   const flushTabs = () => { if (tabs.length) { cur.push({ tabs }); tabs = []; } };
+  const addTab = t => { if (!t) return; tabs.push(t); sinTab = 0; if (tabs.length >= 6) flushTabs(); }; // 6 cuerdas = 1 tablatura
   const flush = () => {
     flushTabs();
     if (cur.length) { bloques.push({ kind, note, lines: cur }); cur = []; kind = 'verse'; note = ''; }
   };
+  const esLetra = t => t && t.trim() && !esAcordes(t) && !seccion(t);
 
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     let l = it.text;
     if (!l.trim() && !it.tab) { blancos++; if (cortaPorBlanco || blancos >= 2) flush(); continue; }
+    if (!it.tab && /^[\s-]+$/.test(l)) continue;      // líneas con solo guiones
     blancos = 0;
-    if (!l.trim()) { tabs.push(it.tab); continue; }   // línea solo-tab
+    if (!l.trim()) { addTab(it.tab); continue; }       // línea solo-tab
 
     const s = seccion(l);
     if (s) {
       flush();
       if (/^(estribillo|coro)$/i.test(s[1])) kind = 'chorus';
       else { const e = (s[1] + s[2]).trim(); note = e.charAt(0).toUpperCase() + e.slice(1).toLowerCase(); }
-      if (it.tab) tabs.push(it.tab);
+      addTab(it.tab);
       if (!s[3].trim()) continue;
       l = s[3];
     }
-    if (!it.tab) flushTabs();   // una tablatura es una racha de líneas con tab
+    if (++sinTab > 5) flushTabs();
 
     if (esAcordes(l)) {
+      const toks = chordsOf(l);
+      const pend = [];                                  // tabs que aparecen entre medias
+      if (it.tab) pend.push(it.tab);
       let j = i + 1;
-      while (j < items.length && !items[j].text.trim() && items[j].tab) j++;
-      const nx = items[j];
-      if (it.tab) tabs.push(it.tab);
-      if (nx && nx.text.trim() && !esAcordes(nx.text) && !seccion(nx.text)) {
-        for (let k = i + 1; k < j; k++) tabs.push(items[k].tab);
-        cur.push({ tex: mezclar(l, nx.text) });
-        if (nx.tab) tabs.push(nx.tab);
-        i = j;
-      } else cur.push({ tex: soloAcordes(l) });
+      if (toks.length === 1) {
+        // posible racha de acordes sueltos (uno por línea)
+        const grupo = [toks[0]];
+        for (; j < items.length; j++) {
+          const t = items[j];
+          if (!t.text.trim() || /^[\s-]+$/.test(t.text)) { if (t.tab) pend.push(t.tab); continue; }
+          if (esAcordes(t.text) && chordsOf(t.text).length === 1) { grupo.push(chordsOf(t.text)[0]); if (t.tab) pend.push(t.tab); continue; }
+          break;
+        }
+        const nx = items[j];
+        if (esLetra(nx && nx.text)) {
+          cur.push({ tex: grupo.length === 1 && j === i + 1 ? mezclar(l, nx.text) : repartir(grupo, nx.text) });
+          pend.push(nx.tab); i = j;
+        } else { cur.push({ tex: soloAcordes(grupo.join(' ')) }); i = j - 1; }
+      } else {
+        while (j < items.length && !items[j].text.trim() && items[j].tab) { pend.push(items[j].tab); j++; }
+        const nx = items[j];
+        if (esLetra(nx && nx.text)) { cur.push({ tex: mezclar(l, nx.text) }); pend.push(nx.tab); i = j; }
+        else cur.push({ tex: soloAcordes(l) });
+      }
+      pend.forEach(addTab);
     } else {
-      cur.push({ tex: corchetes(l) });
-      if (it.tab) tabs.push(it.tab);
+      cur.push({ tex: corchetes(l.trim()) });
+      addTab(it.tab);
     }
   }
   flush();
@@ -220,7 +266,12 @@ function renderBloque(b) {
   let out = '', buf = [];
   if (b.kind === 'chorus') buf.push('\\textit{\\textcolor{gris}{Estribillo}}');
   else if (b.note) buf.push('\\textit{\\textcolor{gris}{' + esc(b.note) + '}}');
-  const fl = () => { if (buf.length) { out += buf.join(' \\\\[0.9em]\n') + '\n\n'; buf = []; } };
+  const fl = () => {
+    if (!buf.length) return;
+    let t = buf[0];
+    for (let i = 1; i < buf.length; i++) t += (buf[i].includes('\\chord') ? ' \\\\[0.9em]\n' : ' \\\\\n') + buf[i];
+    out += t + '\n\n'; buf = [];
+  };
   for (const s of b.lines) {
     if (s.tabs) {
       fl();
@@ -234,8 +285,8 @@ function renderBloque(b) {
 }
 
 function generar(texto, titulo, artista) {
-  let cuerpo = `\\section{${esc(titulo || 'Título')}}\n{\\color{gris}\\small ${esc(artista || 'Artista')}}\\par\n\n`;
-  const bl = parsear(texto).map(renderBloque).join('');
+  let cuerpo = $('chkTitulo').checked ? `\\section{${esc(titulo || 'Título')}}\n{\\color{gris}\\small ${esc(artista || 'Artista')}}\\par\n\n` : '';
+  const bl = parsear(texto).map(renderBloque).join('').replace(/\n+$/, '\n');
   cuerpo += $('chkCols').checked ? `\\begin{multicols}{2}\n${bl}\\end{multicols}\n` : bl;
   if (!$('chkCompleto').checked) return cuerpo;
   return PREAMBULO + '\n\\begin{document}\n\n' + cuerpo + '\n\\end{document}\n';
@@ -290,7 +341,7 @@ async function cargarDesdeUrl() {
     $('estado').textContent = 'Listo. Revisa el resultado.';
   } catch (e) {
     console.error(e);
-    $('estado').textContent = 'No se pudo descargar (' + e.message + '). Copia y pega el texto de la canción abajo.';
+    $('estado').textContent = 'No se pudo descargar (' + e.message + '). Usa el marcador de abajo o pega el texto.';
   } finally {
     btn.disabled = false;
   }
@@ -303,7 +354,20 @@ function copiar() {
 }
 
 ['inputSong','inputTitulo','inputArtista'].forEach(id => $(id).addEventListener('input', convertirManual));
-['chkCompleto','chkCols','chkBlank'].forEach(id => $(id).addEventListener('change', convertirManual));
+['chkCompleto','chkCols','chkBlank','chkTitulo'].forEach(id => $(id).addEventListener('change', convertirManual));
+// Canción enviada por el marcador (#datos)
+(function () {
+  if (location.hash.length < 2) return;
+  try {
+    const d = JSON.parse(decodeURIComponent(location.hash.slice(1)));
+    $('inputSong').value = d.s || '';
+    $('inputTitulo').value = d.t || '';
+    $('inputArtista').value = d.a || '';
+    convertirManual();
+    $('estado').textContent = 'Canción cargada desde el marcador.';
+    history.replaceState(null, '', location.pathname);
+  } catch (e) { console.error(e); }
+})();
 </script>
 </body>
 </html>
